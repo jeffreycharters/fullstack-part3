@@ -1,7 +1,12 @@
+require('dotenv').config()
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
 const app = express()
+
+
+const Person = require('./models/person')
+
 
 morgan.token('body', (req, res) => {
     return JSON.stringify(req.body)
@@ -27,17 +32,26 @@ let persons = [
         name: "Scooter Dog",
         number: "222-222-2223",
         id: 3,
+    },
+    {
+        name: "Scrappy Do",
+        number: "222-222-2224",
+        id: 3,
     }
 ]
 
 app.get('/api/persons', (request, response) => {
-    response.json(persons)
-})
+    Person.find({}).then(persons => {
+        response.json(persons.map(person => person.toJSON()))
+    });
+});
 
 app.get('/api/info', (request, response) => {
-    const date = new Date()
-    const info = `Phonebook has info for ${persons.length} people.<br><br>${date}`
-    response.send(info)
+    Person.countDocuments().then(response => {
+        const date = new Date()
+        return `Phonebook has info for ${response} people.<br><br>${date}`
+    })
+        .then(info => response.send(info))
 
 })
 
@@ -61,31 +75,32 @@ app.delete('/api/persons/:id', (request, response) => {
 
 app.post('/api/persons/', (request, response) => {
     const body = request.body
-    const id = Math.floor(Math.random() * 10000000000)
 
-    if (!body.name || !body.number) {
+    if (body.name === undefined || body.number === undefined) {
         return response.status(400).json({
             error: 'name or number missing'
         })
     }
 
-    const personExists = persons.find(person => person.name === body.name)
+    /* REMOVE DUP FUNCTIONALITY FOR NOW
+const personExists = persons.find(person => person.name === body.name)
 
-    if (personExists) {
-        return response.status(400).json({
-            error: 'person already exists in phonebook'
-        })
-    }
+if (personExists) {
+    return response.status(400).json({
+        error: 'person already exists in phonebook'
+    })
+}
+*/
 
-    const person = {
-        id: id,
+    const person = new Person({
         name: request.body.name,
         number: request.body.number
-    }
+    })
 
-    persons = persons.concat(person)
+    person.save().then(savedPerson => {
+        response.json(savedPerson.toJSON())
+    })
 
-    response.json(person)
 })
 
 const unknownEndpoint = (request, response, next) => {
