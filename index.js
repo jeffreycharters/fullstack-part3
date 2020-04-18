@@ -17,28 +17,6 @@ app.use(morgan(':method :url :status :res[content-length] - :response-time ms :b
 app.use(express.static('build'))
 app.use(express.json())
 
-let persons = [
-    {
-        name: "Scooby Doo",
-        number: "123-456-7890",
-        id: 1,
-    },
-    {
-        name: "Franky Roosevelt",
-        number: "416-867-5309",
-        id: 2,
-    },
-    {
-        name: "Scooter Dog",
-        number: "222-222-2223",
-        id: 3,
-    },
-    {
-        name: "Scrappy Do",
-        number: "222-222-2224",
-        id: 3,
-    }
-]
 
 app.get('/api/persons', (request, response, error) => {
     Person.find({})
@@ -93,33 +71,20 @@ app.put('/api/persons/:id', (request, response, next) => {
         .catch(error => next(error))
 })
 
-app.post('/api/persons/', (request, response) => {
+app.post('/api/persons/', (request, response, next) => {
     const body = request.body
 
-    if (body.name === undefined || body.number === undefined) {
-        return response.status(400).json({
-            error: 'name or number missing'
-        })
-    }
-
-    /* REMOVE DUP FUNCTIONALITY FOR NOW
-const personExists = persons.find(person => person.name === body.name)
-
-if (personExists) {
-    return response.status(400).json({
-        error: 'person already exists in phonebook'
-    })
-}
-*/
-
     const person = new Person({
-        name: request.body.name,
-        number: request.body.number
+        name: body.name,
+        number: body.number
     })
 
-    person.save().then(savedPerson => {
-        response.json(savedPerson.toJSON())
-    })
+
+    person.save()
+        .then(savedPerson => savedPerson.toJSON())
+        .then(savedAndFormattedPerson => response.json(savedAndFormattedPerson))
+        .catch(error => next(error))
+
 
 })
 
@@ -134,6 +99,10 @@ const errorHandler = (error, request, response, next) => {
 
     if (error.name === 'CastError') {
         return response.status(400).send({ error: 'malformed id' })
+    }
+
+    if (error.name === 'ValidationError') {
+        return response.status(400).send({ error: error.message })
     }
 
     next(error)
